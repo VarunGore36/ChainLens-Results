@@ -91,22 +91,28 @@ The built site is output to `website/dist/`. The `data/` directory is copied to 
 
 ## Deploying
 
-The site can be deployed as a static website to:
+The site is deployed on **Vercel**. Pushing to `main` triggers an automatic deployment.
 
-- **GitHub Pages** — push `website/dist/` to the `gh-pages` branch
-- **Netlify** — connect the repo, set build command to `cd website && npm run build`, publish directory to `website/dist`
-- **Vercel** — connect the repo, framework preset Vite, root directory `website`
+### Vercel Setup
 
-### GitHub Pages Setup
+1. Go to [vercel.com](https://vercel.com) and sign in with GitHub
+2. Click **Add New Project**
+3. Import `VarunGore36/ChainLens-Results`
+4. Vercel will auto-detect the Vite framework from `vercel.json`
+5. Click **Deploy**
 
-To deploy to GitHub Pages:
+The `vercel.json` at the repo root handles all configuration:
 
-1. Go to Settings → Pages
-2. Set source to "Deploy from a branch"
-3. Select `gh-pages` branch, `/ (root)` folder
-4. Push the built `dist/` contents to `gh-pages`
+```json
+{
+  "buildCommand": "cd website && npm run build",
+  "outputDirectory": "website/dist",
+  "installCommand": "cd website && npm install",
+  "framework": "vite"
+}
+```
 
-Or use a GitHub Action to build and deploy automatically.
+No environment variables required.
 
 ## Data Schema
 
