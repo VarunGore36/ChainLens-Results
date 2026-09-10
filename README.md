@@ -26,42 +26,116 @@ The core ChainLens implementation repository is private because it contains:
 
 The **results** of that work — benchmark numbers, methodology, architecture decisions, and this dashboard — are published here.
 
-## Repository Structure
+## Latest Results
+
+### Pipeline Throughput (PostgreSQL 17)
+
+| Experiment | blocks/sec |
+|------------|------------|
+| Sequential (1 worker) | **392** |
+| Concurrent (2 workers) | 382 |
+| Concurrent (4 workers) | 376 |
+| Decode only (no DB) | **1,700,000** |
+
+### Decode Benchmarks
+
+| Benchmark | Time (ns) |
+|-----------|-----------|
+| `decode_empty_block` | 28.3 |
+| `decode_legacy_tx` | 67.2 |
+| `decode_eip1559_with_erc20` | 150.6 |
+| `decode_erc721` | 125.6 |
+| `decode_contract_creation` | 65.1 |
+| `decode_multi_tx_with_logs` | 241.5 |
+
+### Test Results
+
+| Metric | Value |
+|--------|-------|
+| Total tests | **63** |
+| Unit tests | 56 |
+| Integration tests | 7 |
+| Failures | 0 |
+
+## Architecture
 
 ```
-ChainLens-Results/
-├── README.md
-├── LICENSE
-├── data/
-│   ├── latest.json           Primary source of truth
-│   ├── RESULTS.md            Detailed benchmark documentation
-│   └── historical/
-│       └── results.json      Historical scan snapshots
-├── website/                  React dashboard (Vite + TypeScript + Tailwind)
-│   ├── src/
-│   ├── public/
-│   └── dist/                 Built static site
-└── docs/                     Additional documentation
+  Ethereum JSON-RPC
+         │
+         ▼
+  ┌─────────────┐   ┌─────────────┐
+  │ Head Watcher│──▶│  Scheduler  │
+  └─────────────┘   └──────┬──────┘
+                           │
+                    bounded channel ◀── backpressure
+                           │
+         ┌─────────────────┴─────────────────┐
+         │      Fetch + Decode Workers       │
+         └─────────────────┬─────────────────┘
+                           │
+                    bounded channel ◀── backpressure
+                           │
+                    ┌──────▼──────┐
+                    │  Sequencer  │
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐      ┌───────────────┐
+                    │  Committer  │─────▶│ Reorg Handler │
+                    └──────┬──────┘      └──────┬──────┘
+                           │                     │
+                           ▼   one transaction   ▼
+                    ┌──────────────────────────────────┐
+                    │           PostgreSQL             │
+                    └──────────────────────────────────┘
 ```
 
-## How the Website Works
+**Key design decisions:**
+- Fan out for I/O, funnel to a single writer — the bottleneck is RPC round-trips by an order of magnitude
+- The cursor lives in the same transaction as the data — crash recovery is a single `SELECT`
+- Every channel is bounded — backpressure is structural, not hoped for
+- Reorgs are tested against a scriptable mock, not against mainnet
 
-The dashboard is a React + Vite + TypeScript application styled with Tailwind CSS. It loads data from:
+## Methodology
 
-- `/data/latest.json` — current benchmark results
-- `/data/historical/results.json` — historical results over time
+### Three environments, so cost is attributable
 
-**No benchmark numbers are hardcoded in components.** The JSON files are the single source of truth. Updating `data/latest.json` and redeploying automatically updates the dashboard.
+| Env | Setup | Isolates | Answers |
+|-----|-------|----------|---------|
+| **E1 Replay** | Mock RPC, zero latency | decode + DB write path | What is my ceiling? |
+| **E2 Synthetic** | Mock RPC, injected latency | concurrency behavior | Does throughput scale with workers? |
+| **E3 Real** | Actual hosted RPC | real-world constraints | What do I actually get? |
 
-### Sections
+### How results are generated
 
-1. **Overview** — project status, version, test results, last updated
-2. **Latest Results** — decode benchmarks, throughput metrics
-3. **Security Findings** — advisory table (populated when dependency data is available)
-4. **Dependency Analysis** — charts for dependency health distribution
-5. **Historical Results** — timeline of scans with trend charts
-6. **Methodology** — how ChainLens evaluates performance and correctness
-7. **About** — project description, links, roadmap
+1. **Decode benchmarks** run via `criterion` against JSON fixture files
+2. **Pipeline benchmarks** run via custom harness against mock RPC + PostgreSQL
+3. **Integration tests** verify decode correctness against fixtures
+4. All results record git revision, configuration, and environment
+
+## Project Status
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Foundation and scaffolding | Complete |
+| 2 | RPC client | Complete |
+| 3 | Domain model and decoding | Complete |
+| 4 | Schema and commit | Complete |
+| 5 | Sequential pipeline | Complete |
+| 6 | Reorg handling | Complete |
+| 7 | Crash recovery | Complete |
+| 8 | Observability | Complete |
+| 9 | Concurrency | Complete |
+| 10 | Query API | Complete |
+| 11 | Benchmarking | Complete |
+| 12 | Documentation | Complete |
+
+## Data Files
+
+| File | Description |
+|------|-------------|
+| `data/latest.json` | Current benchmark results (machine-readable) |
+| `data/historical/results.json` | Historical results over time |
+| `data/RESULTS.md` | Detailed benchmark results documentation |
 
 ## Running Locally
 
@@ -78,159 +152,15 @@ npm install
 npm run dev
 ```
 
-The site will be available at `http://localhost:3000`.
-
-## Building for Production
-
-```bash
-cd website
-npm run build
-```
-
-The built site is output to `website/dist/`. The `data/` directory is copied to `dist/data/` during build.
-
 ## Deploying
 
 The site is deployed on **Vercel**. Pushing to `main` triggers an automatic deployment.
 
-### Vercel Setup
+## Scope
 
-1. Go to [vercel.com](https://vercel.com) and sign in with GitHub
-2. Click **Add New Project**
-3. Import `VarunGore36/ChainLens-Results`
-4. Vercel will auto-detect the Vite framework from `vercel.json`
-5. Click **Deploy**
+**In scope:** Ethereum mainnet; block, transaction, receipt, and log indexing; ERC-20 and ERC-721 transfer decoding; canonical chain tracking with reorg rollback; crash-safe resumable indexing; bounded-concurrency ingestion; a read API; Prometheus metrics; a reproducible benchmark suite.
 
-The `vercel.json` at the repo root handles all configuration:
-
-```json
-{
-  "buildCommand": "cd website && npm run build",
-  "outputDirectory": "website/dist",
-  "installCommand": "cd website && npm install",
-  "framework": "vite"
-}
-```
-
-No environment variables required.
-
-## Data Schema
-
-### latest.json
-
-```typescript
-interface ChainLensData {
-  lastUpdated: string;          // ISO 8601 timestamp
-  version: string;              // ChainLens version
-  status: string;               // Current project status
-  sampleData: boolean;          // Whether this is sample data
-  summary: {
-    sequentialThroughput?: {    // Throughput measurement
-      value: string;
-      unit: string;
-      phase: string;
-    };
-    decodeLatency?: {           // Decode benchmark summary
-      value: number;
-      unit: string;
-      description: string;
-    };
-    maxReorgDepth?: number;
-    totalTests?: number;
-    testsPassing?: number;
-    totalDependencies?: number;
-    directDependencies?: number;
-    transitiveDependencies?: number;
-    vulnerabilities?: number;
-    unmaintained?: number;
-  };
-  decodeBenchmarks: Array<{
-    name: string;
-    time_ns: number;
-    status: string;
-  }>;
-  findings?: Array<{
-    id: string;
-    package: string;
-    version: string;
-    type: 'vulnerability' | 'unmaintained' | 'warning' | 'informational';
-    severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
-    patchedVersion?: string;
-    description: string;
-    url?: string;
-    status: 'open' | 'patched' | 'acknowledged';
-  }>;
-  phases: Array<{
-    id: number;
-    name: string;
-    status: 'complete' | 'next' | 'planned';
-  }>;
-}
-```
-
-### historical/results.json
-
-```typescript
-Array<{
-  date: string;
-  version: string;
-  phase: number;
-  decode_eip1559_with_erc20_ns?: number;
-  tests_passing?: number;
-  total_dependencies?: number;
-  vulnerabilities?: number;
-  unmaintained?: number;
-  note?: string;
-}>
-```
-
-## How Result Updates Work
-
-```
-PRIVATE CHAINLENS REPO
-        │
-        │ run analysis / benchmarks
-        v
-published results
-        │
-        v
-ChainLens-Results/data/latest.json
-        │
-        v
-website rebuild (automatic or manual)
-        │
-        v
-live dashboard
-```
-
-1. Benchmarks and analysis run in the private ChainLens repository
-2. Results are published to `data/latest.json` in this repository
-3. The website reads the JSON at runtime
-4. Redeploying (or GitHub Pages auto-build) updates the dashboard
-
-## Latest Results
-
-### Pipeline Throughput (PostgreSQL 17)
-
-| Experiment | blocks/sec |
-|------------|------------|
-| Sequential (1 worker) | 392 |
-| Decode only (no DB) | 1,700,000 |
-
-### Decode Benchmarks
-
-| Benchmark | Time (ns) |
-|-----------|-----------|
-| `decode_empty_block` | 28.3 |
-| `decode_legacy_tx` | 67.2 |
-| `decode_eip1559_with_erc20` | 150.6 |
-| `decode_erc721` | 125.6 |
-| `decode_contract_creation` | 65.1 |
-| `decode_multi_tx_with_logs` | 241.5 |
-
-63 tests passing. Zero failures.
-
-See [data/RESULTS.md](data/RESULTS.md) for detailed benchmark documentation.
+**Deliberately excluded:** Multi-chain support, GraphQL, a frontend dashboard, Kubernetes, Kafka.
 
 ## License
 
