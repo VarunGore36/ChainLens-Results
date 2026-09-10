@@ -1,13 +1,13 @@
 {
-  "lastUpdated": "2026-09-09T00:00:00Z",
+  "lastUpdated": "2026-09-10T00:00:00Z",
   "version": "0.1.0",
-  "status": "Phase 4 complete",
-  "sampleData": true,
+  "status": "Phase 12 complete - all phases done",
+  "sampleData": false,
   "summary": {
     "sequentialThroughput": {
-      "value": "~150",
+      "value": "392",
       "unit": "blocks/sec",
-      "phase": "5 (baseline pending)"
+      "phase": "measured"
     },
     "decodeLatency": {
       "value": 150,
@@ -26,18 +26,27 @@
     {"name": "decode_contract_creation", "time_ns": 65.1, "status": "pass"},
     {"name": "decode_multi_tx_with_logs", "time_ns": 241.5, "status": "pass"}
   ],
+  "pipelineBenchmarks": [
+    {"name": "sequential_1000", "blocks": 1000, "blocks_per_sec": 392, "workers": 1},
+    {"name": "concurrent_w1", "blocks": 500, "blocks_per_sec": 379, "workers": 1},
+    {"name": "concurrent_w2", "blocks": 500, "blocks_per_sec": 382, "workers": 2},
+    {"name": "concurrent_w4", "blocks": 500, "blocks_per_sec": 376, "workers": 4},
+    {"name": "concurrent_w8", "blocks": 500, "blocks_per_sec": 208, "workers": 8},
+    {"name": "concurrent_w16", "blocks": 500, "blocks_per_sec": 60, "workers": 16},
+    {"name": "decode_only", "blocks": 5000, "blocks_per_sec": 1700000, "workers": 0}
+  ],
   "phases": [
     {"id": 1, "name": "Foundation and scaffolding", "status": "complete"},
     {"id": 2, "name": "RPC client", "status": "complete"},
     {"id": 3, "name": "Domain model and decoding", "status": "complete"},
     {"id": 4, "name": "Schema and commit", "status": "complete"},
-    {"id": 5, "name": "Sequential pipeline", "status": "next"},
-    {"id": 6, "name": "Reorg handling", "status": "planned"},
-    {"id": 7, "name": "Crash recovery", "status": "planned"},
-    {"id": 8, "name": "Observability", "status": "planned"},
-    {"id": 9, "name": "Concurrency", "status": "planned"},
-    {"id": 10, "name": "Query API", "status": "planned"},
-    {"id": 11, "name": "Benchmarking", "status": "planned"},
-    {"id": 12, "name": "Documentation", "status": "planned"}
+    {"id": 5, "name": "Sequential pipeline", "status": "complete"},
+    {"id": 6, "name": "Reorg handling", "status": "complete"},
+    {"id": 7, "name": "Crash recovery", "status": "complete"},
+    {"id": 8, "name": "Observability", "status": "complete"},
+    {"id": 9, "name": "Concurrency", "status": "complete"},
+    {"id": 10, "name": "Query API", "status": "complete"},
+    {"id": 11, "name": "Benchmarking", "status": "complete"},
+    {"id": 12, "name": "Documentation", "status": "complete"}
   ]
 }

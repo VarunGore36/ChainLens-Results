@@ -210,6 +210,15 @@ live dashboard
 
 ## Latest Results
 
+### Pipeline Throughput (PostgreSQL 17)
+
+| Experiment | blocks/sec |
+|------------|------------|
+| Sequential (1 worker) | 392 |
+| Decode only (no DB) | 1,700,000 |
+
+### Decode Benchmarks
+
 | Benchmark | Time (ns) |
 |-----------|-----------|
 | `decode_empty_block` | 28.3 |
