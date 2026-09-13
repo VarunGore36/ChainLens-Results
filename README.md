@@ -2,6 +2,8 @@
 
 Performance metrics, benchmark results, and analysis from [ChainLens](https://github.com/VarunGore36/ChainLens) — an Ethereum blockchain indexer built in Rust.
 
+**Live dashboard:** [https://chain-lens-results.vercel.app](https://chain-lens-results.vercel.app)
+
 ## What is ChainLens?
 
 ChainLens is an Ethereum mainnet indexer that ingests blocks, transactions, receipts, and event logs from a JSON-RPC endpoint, decodes them, persists them to PostgreSQL, and serves them over a read API.
